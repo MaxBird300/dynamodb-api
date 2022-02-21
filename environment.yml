@@ -1,4 +1,4 @@
-name: smarter_bms_db
+name: dynamodb-api
 channels:
   - conda-forge
   - defaults
@@ -7,4 +7,4 @@ dependencies:
   - spyder=5.1.5
   - pip
   - pip:
-    - git+https://github.com/MaxBird300/smarter_bms_db.git
+    - git+https://github.com/MaxBird300/dynamodb-api.git
