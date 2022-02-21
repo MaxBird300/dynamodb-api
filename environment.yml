@@ -1,0 +1,10 @@
+name: smarter_bms_db
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9.7
+  - spyder=5.1.5
+  - pip
+  - pip:
+    - git+https://github.com/MaxBird300/smarter_bms_db.git

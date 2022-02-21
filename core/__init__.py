@@ -1,0 +1,1 @@
+from .dynamo_backend import dynamoTable
