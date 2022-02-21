@@ -7,14 +7,14 @@ with open('README.md') as f:
     readme = f.read()
 
 setup(
-    name='dynamodbapi',
+    name='ddbwrapper',
     version='1.0.0',
     description='Wrapper to easily access DynamoDB table',
     long_description=readme,
     author='Max Bird',
     author_email='mhb316@ic.ac.uk',
     url='https://github.com/MaxBird300/dynamodb-api',
-    packages=['core'],
+    packages=['ddbwrapper'],
     install_requires=[
         "pandas>=1.2.4",
         "numpy>=1.21.2",
