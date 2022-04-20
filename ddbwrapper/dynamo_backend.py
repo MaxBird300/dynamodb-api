@@ -292,14 +292,14 @@ class dynamoTable:
             topic_names += [x["PK"] for x in response["Responses"][self.Table.table_name]] # list of topic strings
             payload_dicts += [json.loads(x["message"]) for x in response["Responses"][self.Table.table_name]] # list of mqtt payloads represented as dictionaries
             topic_vals = [x["ICL"] for x in payload_dicts]
-            topic_unix_ts = [x["ICL_ts"] for x in payload_dicts]
+            topic_unix_ts = [int(x["ICL_ts"]) for x in payload_dicts]
         
-        
-        df = pd.DataFrame(data = list(zip(topic_unix_ts, topic_vals)), index=topic_names, columns=["unixTimestamp","Value"])
+        df = pd.DataFrame(data = topic_vals, index=topic_names, columns=["Value"], dtype=np.float32)
+        df["unixTimestamp"] = topic_unix_ts
         utc_timestamps = pd.to_datetime(topic_unix_ts, unit="s", origin="unix", utc=True)
         london_timestamps = utc_timestamps.tz_convert("Europe/London")
         df.insert(loc=0, column="Timestamp", value=london_timestamps) # convert UTC timestamp to local london time 
-        return df
+        return df.reindex(topics)
         
 
           
