@@ -7,15 +7,14 @@ Created on Thu Nov 12 15:41:32 2020
 @author: maxbi
 """
 import boto3
-from boto3.dynamodb.conditions import Key
 import pandas as pd
 import numpy as np
 import ast
 import sys
 from math import floor
-from ddbwrapper.utilities import timestamp2unix, getDtypes
+from ddbwrapper.utilities import getDtypes
 
-def calc_kwh(df, resampleInterval="15min"):
+def calc_kwh(df: pd.DataFrame, resampleInterval="15min") -> pd.DataFrame:
 
     interval_kwh = df.iloc[1:,0].reset_index(drop=True) - df.iloc[:-1,0].reset_index(drop=True)
     df = pd.DataFrame(data = interval_kwh.values, index=df.index[1:]) # timestamp refers to end of time period
@@ -28,20 +27,16 @@ def calc_kwh(df, resampleInterval="15min"):
 
 class dynamoTable:
     
-    def __init__(self, tableName, excelPath, aws_profile_name="default"):
+    def __init__(self, table_name: str, aws_profile_name="default"):
         
         session = boto3.session.Session(profile_name=aws_profile_name)
         self.dynamodb = session.resource('dynamodb')
-        self.Table = session.resource('dynamodb').Table(tableName)
-        self.Topics = pd.read_excel(excelPath, sheet_name="Store MQTT points", usecols=["Point ID","Outstation","Name","Units","final_topic"])
-        self.weatherTypes = pd.read_excel(excelPath, sheet_name="weather", usecols=["Variable"])
-        self.carbonTypes = pd.read_excel(excelPath, sheet_name="carbon", usecols=["Variable"])
-
+        self.Table = session.resource('dynamodb').Table(table_name)
 
     def queryDynamo(self, pk: str, unix_start: int, unix_end: int) -> (dict, bool):
         
         # query the values for a specific topic, from queryTimestamp to present time. 
-        kce = Key("PK").eq(pk) & Key("unixTimestamp").between(unix_start, unix_end) # key condition expression  
+        kce = boto3.dynamodb.conditions.Key("PK").eq(pk) & boto3.dynamodb.conditions.Key("unixTimestamp").between(unix_start, unix_end) # key condition expression  
         response = self.Table.query(KeyConditionExpression=kce)
         
         # As long as "LastEvaluatedKey" is in response it means there are still items from the query which haven't been pulled in (1MB query limit)
@@ -214,7 +209,7 @@ class dynamoTable:
         pk : Partition key for data you want to collect.
         unix_start: unix timestamp for start of query
         unix_end: unix timestamp for end of query
-        attributes : list of attributes to return, complete list can be found in "data collected in DynamoDB.xlsx". Can also be "all" to return all weather data.
+        attributes : list of attributes to return, complete list can be found in "data collected in DynamoDB.xlsx".
         forecast_horizon : Number of forecast horizons to return.
 
         Returns
@@ -224,12 +219,8 @@ class dynamoTable:
         """
         if pk == "weather":
             data_freq=int(60*60)
-            if attributes == "all":
-                attributes = [x for x in self.weatherTypes["Variable"]]
         elif pk == "carbon":
             data_freq=int(60*30)
-            if attributes == "all":
-                attributes = [x for x in self.carbonTypes["Variable"]]
         
         batch_key_list = self.formatBatchQuery(pk, unix_start, unix_end, data_freq, attributes, forecast_horizon)
         
