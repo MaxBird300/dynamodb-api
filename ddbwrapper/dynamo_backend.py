@@ -9,7 +9,7 @@ Created on Thu Nov 12 15:41:32 2020
 import boto3
 import pandas as pd
 import numpy as np
-import ast
+import json
 import sys
 from math import floor
 from ddbwrapper.utilities import getDtypes
@@ -280,8 +280,8 @@ class dynamoTable:
             batch_key_list.append(batchKeys)
             currentQuery += 1
         
-        messagesList = []
-        topicsList = []
+        payload_dicts = []
+        topic_names = []
         for batchKeys in batch_key_list:
             response = self.batchQuery(batchKeys)
             
@@ -289,30 +289,17 @@ class dynamoTable:
                 print("Batch query failed to get all data, didn't retrieve %i keys" % len(response["UnprocessedKeys"]))
                 print("Your code currently doesn't handle retrying to get these unprocessed keys - BE CAREFUL!")
             
-            messagesList += [x["message"] for x in response["Responses"][self.Table.table_name]] # list of mqtt payloads represented as a JSON string
-            topicsList += [x["PK"] for x in response["Responses"][self.Table.table_name]] # list of topic strings
+            topic_names += [x["PK"] for x in response["Responses"][self.Table.table_name]] # list of topic strings
+            payload_dicts += [json.loads(x["message"]) for x in response["Responses"][self.Table.table_name]] # list of mqtt payloads represented as dictionaries
+            topic_vals = [x["ICL"] for x in payload_dicts]
+            topic_unix_ts = [x["ICL_ts"] for x in payload_dicts]
         
-        df = pd.DataFrame()
-        for entry in range(len(messagesList)):
-            if messagesList[entry] == '{"ICL":': # this occurs for some faulty points in the GSHP list
-                df = df.append([[topicsList[entry], np.nan, np.nan]])
-            else:
-                messageDict = ast.literal_eval(messagesList[entry])
-                # print(messageDict)
-                try:
-                    df = df.append([[topicsList[entry], int(messageDict["ICL_ts"]), messageDict["ICL"]]])
-                except KeyError:
-                    df = df.append([[topicsList[entry], int(0), messageDict["ICL"]]])
         
-        df.insert(loc=0, column="Timestamp", value = pd.to_datetime(df[1], unit="s", origin="unix", utc=True))          
-        df["Timestamp"] = df["Timestamp"].dt.tz_convert("Europe/London") # convert UTC timestamp to local london time 
-        
-        df.columns = ["Timestamp","Topic","unixTimestamp","Value"]
-        
-        # sort topic values into the same order they came into the function
-        df.set_index("Topic", inplace=True)
-        df = df.reindex(topics)
-        
+        df = pd.DataFrame(data = list(zip(topic_unix_ts, topic_vals)), index=topic_names, columns=["unixTimestamp","Value"])
+        utc_timestamps = pd.to_datetime(topic_unix_ts, unit="s", origin="unix", utc=True)
+        london_timestamps = utc_timestamps.tz_convert("Europe/London")
+        df.insert(loc=0, column="Timestamp", value=london_timestamps) # convert UTC timestamp to local london time 
         return df
-          
         
+
+          
