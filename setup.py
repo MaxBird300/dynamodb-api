@@ -19,7 +19,6 @@ setup(
         "pandas>=1.2.4",
         "numpy>=1.21.2",
         "openpyxl>=3.0.7",
-        "boto3==1.17.46",
-        "matplotlib>=3.4.3"
+        "boto3>=1.17.46",
         ],
 )

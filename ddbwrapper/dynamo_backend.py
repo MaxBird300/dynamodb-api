@@ -27,9 +27,9 @@ def calc_kwh(df: pd.DataFrame, resampleInterval="15min") -> pd.DataFrame:
 
 class dynamoTable:
     
-    def __init__(self, table_name: str, aws_profile_name="default"):
+    def __init__(self, table_name: str):
         
-        session = boto3.session.Session(profile_name=aws_profile_name)
+        session = boto3.session.Session()
         self.dynamodb = session.resource('dynamodb')
         self.Table = session.resource('dynamodb').Table(table_name)
 
