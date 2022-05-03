@@ -56,7 +56,7 @@ class dynamoTable:
             
         return items, empty_response
 
-    def getTopicData(self, topic: str, unix_start: int, unix_end: int, freq: int) -> pd.DataFrame:
+    def getTopicData(self, topic: str, unix_start: int, unix_end: int, freq: int) -> pd.Series:
         """
         topic: string, MQTT topic name
         unix_start: int, unix timestamp for start of query
@@ -69,20 +69,20 @@ class dynamoTable:
         
         items, empty_response = self.queryDynamo(topic, unix_start, unix_end)
         if empty_response:
-            df = pd.DataFrame(data = {topic: [np.nan]}, index=[unix_start])
+            s = pd.Series(data=[np.nan], index=[unix_start], name=topic)
         else:
             # pull out values and timestamps from response
-            vals = [float(x['value_raw'].value.decode("utf-8")) for x in items] # decode from boto3 binary dtype
+            vals = [np.float64(x['value_raw'].value.decode("utf-8")) for x in items] # decode from boto3 binary dtype, output list of str
             unix_ts = [int(x['unixTimestamp']) for x in items]
-            df = pd.DataFrame(data = {topic: vals}, index=unix_ts)       
+            s = pd.Series(data=vals, index=unix_ts, name=topic)     
         
         # bin data in regular intervals at chosen frequency - won't interpolate missing values!
         if freq:
             bins = [unix_start + freq*x for x in range(int((unix_end-unix_start)/freq)+1)]
-            df = df.groupby(pd.cut(df.index, bins)).mean()
-            df.index = bins[:-1]
+            s = s.groupby(pd.cut(s.index, bins)).mean()
+            s.index = bins[:-1]
 
-        return df
+        return s
     
     def getTopicsData(self, topic_list: list[str], unix_start: int, unix_end: int, freq: int) -> pd.DataFrame:
         """
@@ -95,9 +95,11 @@ class dynamoTable:
         
         """
         
-        df = self.getTopicData(topic_list[0], unix_start, unix_end, freq)
+        s = self.getTopicData(topic_list[0], unix_start, unix_end, freq)
+        df = pd.DataFrame(s)
         for topic in topic_list[1:]:
-            df = pd.concat([df, self.getTopicData(topic, unix_start, unix_end, freq)], axis = 1)
+            # df = pd.concat([s, self.getTopicData(topic, unix_start, unix_end, freq)], axis = 1)
+            df[topic] = self.getTopicData(topic, unix_start, unix_end, freq)
             
         # convert unix timestamp to local london time
         df.index = pd.to_datetime(df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")  
@@ -302,4 +304,39 @@ class dynamoTable:
         return df.reindex(topics)
         
 
-          
+def main():
+    unix_start = 1651403695
+    unix_end = unix_start + 3600*24
+    
+    topic_list = [
+        "kings-lynn/OS-23/sensor/ave-sales-temp-C",
+        'kings-lynn/OS-23/knobs/trend/sales-space-temp-C',
+        "kings-lynn/OS-23/knobs/trend/non-occ-temp-C",
+        "kings-lynn/OS-25/knobs/trend/sales-space-temp-C",
+        "kings-lynn/OS-25/knobs/trend/non-occ-temp-C",
+        
+        "kings-lynn/OS-23/sensor/supply-air-duct-temp-C",
+        "kings-lynn/OS-23/sensor/return-air-duct-temp-C",
+        
+        'kings-lynn/OS-25/sensor/sales-area-supply-temp-C',
+        'kings-lynn/OS-25/drivers/sales-area-supply-fan-speed-%',
+        "kings-lynn/OS-25/sensor/supply-fan-1-speed-%",
+        'kings-lynn/OS-25/drivers/heating-valve-openess-%',
+        
+        "kings-lynn/OS-23/knobs/imperial/occ-space-temp-C/read",
+        "kings-lynn/OS-23/sensor/supply-fan-1-speed-%",
+        "kings-lynn/OS-23/drivers/cold-aisle-supply-fan-speed-%",
+        "kings-lynn/OS-23/drivers/heating-valve-openess-%",
+        "kings-lynn/gshp/flow-temperatures/T11-AHU-supply-C",
+        "kings-lynn/gshp/flow-temperatures/T12-AHU-return-C",
+        "kings-lynn/OS-23/sensor/outside-air-temp-C"
+        ]
+    
+    
+    Table = dynamoTable("bmsTrial")
+    test_df = Table.getTopicsData(topic_list, unix_start, unix_end, freq=5*60)
+    
+    return test_df
+    
+if __name__ == "__main__":
+    test_df = main()
