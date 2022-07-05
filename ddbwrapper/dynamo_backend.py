@@ -14,16 +14,16 @@ import sys
 from math import floor
 from ddbwrapper.utilities import getDtypes
 
-def calc_kwh(df: pd.DataFrame, resampleInterval="15min") -> pd.DataFrame:
+def calc_kwh(s: pd.Series, resample_interval: str="15min") -> pd.Series:
 
-    interval_kwh = df.iloc[1:,0].reset_index(drop=True) - df.iloc[:-1,0].reset_index(drop=True)
-    df = pd.DataFrame(data = interval_kwh.values, index=df.index[1:]) # timestamp refers to end of time period
+    interval_kwh = s[1:].reset_index(drop=True) - s[:-1].reset_index(drop=True)
+    interval_kwh.index = s.index[1:]
     
-    if resampleInterval:
-        df.index = pd.to_datetime(df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
-        df = df.resample(resampleInterval).sum()
+    if resample_interval:
+        interval_kwh.index = pd.to_datetime(interval_kwh.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
+        interval_kwh = interval_kwh.resample(resample_interval).sum()
         
-    return df
+    return interval_kwh # timestamp is end of time period
 
 class dynamoTable:
     
@@ -302,41 +302,3 @@ class dynamoTable:
         london_timestamps = utc_timestamps.tz_convert("Europe/London")
         df.insert(loc=0, column="Timestamp", value=london_timestamps) # convert UTC timestamp to local london time 
         return df.reindex(topics)
-        
-
-def main():
-    unix_start = 1651403695
-    unix_end = unix_start + 3600*24
-    
-    topic_list = [
-        "kings-lynn/OS-23/sensor/ave-sales-temp-C",
-        'kings-lynn/OS-23/knobs/trend/sales-space-temp-C',
-        "kings-lynn/OS-23/knobs/trend/non-occ-temp-C",
-        "kings-lynn/OS-25/knobs/trend/sales-space-temp-C",
-        "kings-lynn/OS-25/knobs/trend/non-occ-temp-C",
-        
-        "kings-lynn/OS-23/sensor/supply-air-duct-temp-C",
-        "kings-lynn/OS-23/sensor/return-air-duct-temp-C",
-        
-        'kings-lynn/OS-25/sensor/sales-area-supply-temp-C',
-        'kings-lynn/OS-25/drivers/sales-area-supply-fan-speed-%',
-        "kings-lynn/OS-25/sensor/supply-fan-1-speed-%",
-        'kings-lynn/OS-25/drivers/heating-valve-openess-%',
-        
-        "kings-lynn/OS-23/knobs/imperial/occ-space-temp-C/read",
-        "kings-lynn/OS-23/sensor/supply-fan-1-speed-%",
-        "kings-lynn/OS-23/drivers/cold-aisle-supply-fan-speed-%",
-        "kings-lynn/OS-23/drivers/heating-valve-openess-%",
-        "kings-lynn/gshp/flow-temperatures/T11-AHU-supply-C",
-        "kings-lynn/gshp/flow-temperatures/T12-AHU-return-C",
-        "kings-lynn/OS-23/sensor/outside-air-temp-C"
-        ]
-    
-    
-    Table = dynamoTable("bmsTrial")
-    test_df = Table.getTopicsData(topic_list, unix_start, unix_end, freq=5*60)
-    
-    return test_df
-    
-if __name__ == "__main__":
-    test_df = main()
