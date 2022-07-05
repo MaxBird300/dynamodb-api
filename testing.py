@@ -7,8 +7,8 @@ Created on Tue Jul  5 14:15:54 2022
 import ddbwrapper as dbw
 
 table = dbw.dynamoTable("bmsTrial")
-unix_start = dbw.timestamp2unix("01/01/2022")
-unix_end = dbw.timestamp2unix("02/01/2022")
+unix_start = dbw.timestamp2unix("00:00 01/01/2022")
+unix_end = dbw.timestamp2unix("00:00 02/01/2022")
 
 meter_list = [
     'kings-lynn/eict-meter/main-meter-kwh',
@@ -27,5 +27,5 @@ topic_list = [
 
 topic_data = table.getTopicsData(topic_list, unix_start, unix_end, freq=15*60)
 meter_data = table.getEnergyMeters(meter_list, unix_start, unix_end, resample_interval="60min")
-weather_data = table.queryWeatherOrCarbon("weather", unix_start, unix_end, "apparentTemperature", forecast_horizon=5)
-carbon_data = table.queryWeatherOrCarbon("carbon", unix_start, unix_end, "all", forecast_horizon=5)
+weather_data = table.queryWeatherOrCarbon("weather", unix_start, unix_end, ["apparentTemperature"], forecast_horizon=5)
+carbon_data = table.queryWeatherOrCarbon("carbon", unix_start, unix_end, ["carbonFactor"], forecast_horizon=5)
