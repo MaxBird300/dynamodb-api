@@ -128,6 +128,31 @@ class dynamoTable:
         
         return all_meters
     
+    def getRdmControllerData(self, controller_id: str, unix_start: int, unix_end: int, freq=int) -> pd.DataFrame:
+        """" Query data for a controller connected to the RDM panel"""
+        
+        topic = f"rdm/2293SainsburysKingsLynnHardwick/subscription/{controller_id}"
+        items, empty_response = self.queryDynamo(topic, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
+        if empty_response:
+            controller_data_df = pd.DataFrame(data=[np.nan], index=[unix_start])
+            
+        else:
+            point_names = [items[0]['value']['Item'][x]['Name'] for x in range(len(items[0]['value']['Item']))] # list of point names for specific controller group
+            # point_types = [controller_reading[0]['value']['Item'][x]['Class'] for x in range(len(controller_reading[0]['value']['Item']))]
+            point_units = [items[0]['value']['Item'][x]['Units'] for x in range(len(items[0]['value']['Item']))]
+            
+            controller_data_df = pd.DataFrame(columns=[f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]) # storing queried data, row is timestamp, column is point reading            
+            for controller_reading in items:
+                unix_timestamp = int(controller_reading["unixTimestamp"])            
+                point_values = [controller_reading['value']['Item'][x]['Value'] for x in range(len(controller_reading['value']['Item']))]
+                
+                controller_data_df.loc[unix_timestamp] = point_values
+        
+        controller_data_df.index = pd.to_datetime(controller_data_df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
+        
+        return controller_data_df
+      
+    
     def formatBatchQuery(self, pk: str, unix_start: int, unix_end: int, data_freq: int, attribute_list: list[str], forecast_horizon: int) -> list[dict]:
         """
         Returns list of batchKeys dicts (each <= 100 items in length) to be used in batchQuery function. Only used for weather and carbon queries at the moment. 
