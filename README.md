@@ -7,3 +7,8 @@ A detailed installation and user guide for first time users can be requested fro
 
 `pip install git+https://github.com/MaxBird300/dynamodb-api.git`
 
+or 
+
+`pip install git+https://github.com/MaxBird300/dynamodb-api@branch`
+
+to install a specific branch
