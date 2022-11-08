@@ -12,7 +12,7 @@ import numpy as np
 import json
 import sys
 from math import floor
-from ddbwrapper.utilities import getDtypes
+from ddbwrapper.utilities import getDtypes, timestamp2unix
 
 def calc_kwh(s: pd.Series, resample_interval: str="15min") -> pd.Series:
 
@@ -137,17 +137,21 @@ class dynamoTable:
             controller_data_df = pd.DataFrame(data=[np.nan], index=[unix_start])
             
         else:
-            point_names = [items[0]['value']['Item'][x]['Name'] for x in range(len(items[0]['value']['Item']))] # list of point names for specific controller group
-            # point_types = [controller_reading[0]['value']['Item'][x]['Class'] for x in range(len(controller_reading[0]['value']['Item']))]
-            point_units = [items[0]['value']['Item'][x]['Units'] for x in range(len(items[0]['value']['Item']))]
+            point_names = [items[0]['value']['readings'][x]['name'] for x in range(len(items[0]['value']['readings']))] # list of point names for specific controller group
+            point_units = [items[0]['value']['readings'][x]['units'] for x in range(len(items[0]['value']['readings']))]
+            series_index = [f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]
             
-            controller_data_df = pd.DataFrame(columns=[f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]) # storing queried data, row is timestamp, column is point reading            
-            for controller_reading in items:
-                unix_timestamp = int(controller_reading["unixTimestamp"])            
-                point_values = [controller_reading['value']['Item'][x]['Value'] for x in range(len(controller_reading['value']['Item']))]
+            controller_data_df = pd.DataFrame(index = series_index) # storing queried data, row is timestamp, column is point reading            
+            for controller_reading in items: # controller_reading contains all data points for one timestep
+                point_values = pd.Series(
+                    data = [controller_reading['value']['readings'][x]['value'] for x in range(len(controller_reading['value']['readings']))],
+                    index = series_index,
+                    name = int(controller_reading["unixTimestamp"])
+                    )
                 
-                controller_data_df.loc[unix_timestamp] = point_values
+                controller_data_df = pd.concat([controller_data_df, point_values], axis=1)
         
+        controller_data_df = controller_data_df.T
         controller_data_df.index = pd.to_datetime(controller_data_df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
         
         return controller_data_df
@@ -327,3 +331,40 @@ class dynamoTable:
         london_timestamps = utc_timestamps.tz_convert("Europe/London")
         df.insert(loc=0, column="Timestamp", value=london_timestamps) # convert UTC timestamp to local london time 
         return df.reindex(topics)
+    
+    
+    
+if __name__ == "__main__":
+    
+    
+    unix_start = timestamp2unix("00:00 01/11/2022")
+    unix_end = timestamp2unix("00:00 08/11/2022")
+    
+    dynamo_table = dynamoTable("bmsTrial")  
+    controller_id = "packCabinet/003"
+    
+    cabinet_data = dynamo_table.getRdmControllerData(controller_id, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
