@@ -137,21 +137,22 @@ class dynamoTable:
             controller_data_df = pd.DataFrame(data=[np.nan], index=[unix_start])
             
         else:
-            point_names = [items[0]['value']['readings'][x]['name'] for x in range(len(items[0]['value']['readings']))] # list of point names for specific controller group
+            point_names = [items[0]['value']['readings'][x]['name'] for x in range(len(items[0]['value']['readings']))] 
             point_units = [items[0]['value']['readings'][x]['units'] for x in range(len(items[0]['value']['readings']))]
-            series_index = [f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]
+            point_unix = [int(items[x]['unixTimestamp']) for x in range(len(items))]
+            df_columns = [f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]
             
-            controller_data_df = pd.DataFrame(index = series_index) # storing queried data, row is timestamp, column is point reading            
+            data_at_each_timestep = []           
             for controller_reading in items: # controller_reading contains all data points for one timestep
-                point_values = pd.Series(
-                    data = [controller_reading['value']['readings'][x]['value'] for x in range(len(controller_reading['value']['readings']))],
-                    index = series_index,
-                    name = int(controller_reading["unixTimestamp"])
-                    )
+                point_values = [controller_reading['value']['readings'][x]['value'] for x in range(len(controller_reading['value']['readings']))]
+                data_at_each_timestep.append(point_values)
                 
-                controller_data_df = pd.concat([controller_data_df, point_values], axis=1)
-        
-        controller_data_df = controller_data_df.T
+            controller_data_df = pd.DataFrame(
+                data = data_at_each_timestep,
+                index = point_unix,
+                columns = df_columns
+                )
+
         controller_data_df.index = pd.to_datetime(controller_data_df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
         
         return controller_data_df
@@ -342,6 +343,8 @@ if __name__ == "__main__":
     
     dynamo_table = dynamoTable("bmsTrial")  
     controller_id = "packCabinet/003"
+    
+    # test = dynamo_table.queryDynamo(f"rdm/2293SainsburysKingsLynnHardwick/subscription/{controller_id}", unix_start, unix_end)
     
     cabinet_data = dynamo_table.getRdmControllerData(controller_id, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
 
