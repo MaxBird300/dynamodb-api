@@ -330,7 +330,7 @@ class dynamoTable:
     
     
 if __name__ == "__main__":
-    
+    """" Main function for testing purposes """
     
     unix_start = timestamp2unix("00:00 01/10/2022")
     unix_end = timestamp2unix("00:00 08/11/2022")
