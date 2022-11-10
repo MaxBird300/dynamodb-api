@@ -94,13 +94,10 @@ class dynamoTable:
         df: pandas dataframe, index of timestamps, each column is readings for all topics, column name is MQTT topic
         
         """
+
+        list_of_topic_data = [self.getTopicData(topic, unix_start, unix_end, freq) for topic in topic_list]
+        df = pd.concat(list_of_topic_data, axis=1)
         
-        s = self.getTopicData(topic_list[0], unix_start, unix_end, freq)
-        df = pd.DataFrame(s)
-        for topic in topic_list[1:]:
-            # df = pd.concat([s, self.getTopicData(topic, unix_start, unix_end, freq)], axis = 1)
-            df[topic] = self.getTopicData(topic, unix_start, unix_end, freq)
-            
         # convert unix timestamp to local london time
         df.index = pd.to_datetime(df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")  
 
@@ -117,13 +114,10 @@ class dynamoTable:
         
         """
 
-        raw_meter_0 = self.getTopicData(topic_list[0], unix_start, unix_end, freq=None)
-        all_meters = calc_kwh(raw_meter_0, resample_interval)
-        
-        for topic in topic_list[1:]:
-            meter_n = self.getTopicData(topic, unix_start, unix_end, freq=None)
-            all_meters = pd.concat([all_meters, calc_kwh(meter_n, resample_interval)], axis=1)
-        
+        list_of_meter_data = [self.getTopicData(topic, unix_start, unix_end, freq=None) for topic in topic_list]
+        list_of_kwh_meter_data = [calc_kwh(raw_meter, resample_interval) for raw_meter in list_of_meter_data]
+
+        all_meters = pd.concat(list_of_kwh_meter_data, axis=1)
         all_meters.columns = topic_list
         
         return all_meters
@@ -338,17 +332,66 @@ class dynamoTable:
 if __name__ == "__main__":
     
     
-    unix_start = timestamp2unix("00:00 01/11/2022")
+    unix_start = timestamp2unix("00:00 01/10/2022")
     unix_end = timestamp2unix("00:00 08/11/2022")
     
     dynamo_table = dynamoTable("bmsTrial")  
     controller_id = "packCabinet/003"
     
-    # test = dynamo_table.queryDynamo(f"rdm/2293SainsburysKingsLynnHardwick/subscription/{controller_id}", unix_start, unix_end)
+    topic_list = [
+        'kings-lynn/OS-23/sensor/cold-aisle-1-temp-C',
+        'kings-lynn/OS-23/sensor/cold-aisle-2-temp-C',
+        'kings-lynn/OS-23/sensor/supply-air-duct-tem-C',
+        'kings-lynn/OS-23/sensor/return-air-duct-temp-C',
+        'kings-lynn/OS-23/sensor/ave-sales-temp-C',
+        'kings-lynn/OS-23/sensor/outside-air-temp-C',
+        'kings-lynn/OS-23/sensor/elevation-enabled-bool',
+        'kings-lynn/OS-23/sensor/supply-fan-1-speed-%',
+        'kings-lynn/OS-23/sensor/heating-valve-openess-%',
+        'kings-lynn/OS-23/sensor/elevation-on-off-bool',
+        'kings-lynn/OS-23/sensor/elevation-always-on-bool',
+        'kings-lynn/OS-23/sensor/calculated-supply-air-temp-sp-C',
+        'kings-lynn/OS-23/sensor/diff-pressure-switch-bool',
+        'kings-lynn/OS-23/sensor/gshp-supply-temp-C',
+        'kings-lynn/OS-23/sensor/duct-low-temp-trip-bool',
+        'kings-lynn/OS-23/sensor/duct-low-temp-latch-bool'
+        ]
     
-    cabinet_data = dynamo_table.getRdmControllerData(controller_id, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
+    meter_list = [
+        'kings-lynn/eict-meter/bakery-LV-kwh',
+        'kings-lynn/eict-meter/geothermal-plant-kwh',
+        'kings-lynn/eict-meter/fridge-DT1-kwh',
+        'kings-lynn/eict-meter/frozen-food-kwh',
+        'kings-lynn/eict-meter/customer-cafe-kwh',
+        'kings-lynn/eict-meter/food-to-go-kwh',
+        'kings-lynn/eict-meter/AHU1-kwh',
+        'kings-lynn/eict-meter/AHU2-kwh',
+        'kings-lynn/eict-meter/AHU3-kwh',
+        'kings-lynn/eict-meter/fridge-DT2-kwh',
+        'kings-lynn/eict-meter/coldstores-kwh',
+        'kings-lynn/eict-meter/sales-area-ltg-kwh',
+        'kings-lynn/eict-meter/ac-unit-DB-kwh',
+        'kings-lynn/eict-meter/staff-kitchen-kwh',
+        'kings-lynn/eict-meter/sales-busbar-kwh',
+        'kings-lynn/eict-meter/car-park-ltg-kwh',
+        'kings-lynn/eict-meter/domestic-ltg-kwh',
+        'kings-lynn/eict-meter/bulkstock-kwh',
+        'kings-lynn/eict-meter/shop-front-ltg-1-kwh',
+        'kings-lynn/eict-meter/unloading-bay-kwh',
+        'kings-lynn/eict-meter/main-meter-kwh',
+        'kings-lynn/eict-meter/concession-unit-kwh',
+        'kings-lynn/eict-meter/h-and-v-panel-kwh',
+        'kings-lynn/eict-meter/solar-pv-kwh',
+        'kings-lynn/eict-meter/petrol-station-PFS-kwh',
+        'kings-lynn/eict-meter/GOL-kwh',
+        'kings-lynn/eict-meter/GM-sales-ltg-kwh',
+        'kings-lynn/eict-meter/GM-sales-area-feature-ltg-kwh',
+        ]
 
     
+    # cabinet_data = dynamo_table.getRdmControllerData(controller_id, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
+    # bms_data = dynamo_table.getTopicsData(topic_list, unix_start, unix_end, freq=5*60)
+    meter_data = dynamo_table.getEnergyMeters(meter_list, unix_start, unix_end, resample_interval="15min")
     
     
     
