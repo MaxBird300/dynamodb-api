@@ -166,7 +166,7 @@ class dynamoTable:
         batch_key_list : list, of batchKey dicts to be used in batch_get_item
 
         """
-        if pk == "weather":
+        if pk == "weather" or pk == "weatherkit-weather":
             offset = int(0) # weather data doesn't need an offset, timestamps already refer to beginning of time period. 
         elif pk == "carbon":
             offset = int(60*30) # in dynamo carbon unixTimestamps refer to end of time period. This changes it to refer to beginning of time period. 
@@ -243,7 +243,7 @@ class dynamoTable:
         df: Indexes are london timestamps for the beginning of the time period, columns are weather data and forecast values.
 
         """
-        if pk == "weather":
+        if pk == "weather" or pk == "weatherkit-weather":
             data_freq=int(60*60)
         elif pk == "carbon":
             data_freq=int(60*30)
