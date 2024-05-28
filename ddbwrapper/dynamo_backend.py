@@ -151,6 +151,21 @@ class dynamoTable:
         
         return controller_data_df
       
+    def get_n2ex_prices(self, unix_start: int, unix_end: int):
+        
+        items, empty_response = self.queryDynamo('nordpool_elec_price', unix_start, unix_end)
+        if ~empty_response:
+            prices = [float(items[x]['elec_price_GBP/MWh']) for x in range(len(items))]
+            unix_timestamps = [int(items[x]['unixTimestamp']) for x in range(len(items))]
+    
+            return pd.Series(
+                data = prices,
+                index = pd.to_datetime(unix_timestamps, unit="s", origin="unix", utc=True).tz_convert("Europe/London"),
+                name = 'n2ex_elec_price_£/MWh'
+                )
+        else:
+            print('No data available for this time period.')
+            return pd.Series(data=[np.nan], index=[unix_start], name = 'n2ex_elec_price_£/MWh')
     
     def formatBatchQuery(self, pk: str, unix_start: int, unix_end: int, data_freq: int, attribute_list: list[str], forecast_horizon: int) -> list[dict]:
         """
