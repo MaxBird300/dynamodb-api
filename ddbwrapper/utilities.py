@@ -58,12 +58,16 @@ def getDtypes(attributes, forecastHorizon):
 
     """
     dtypes = {
-        "apparentTemperature": np.float64,
+        "apparentTemperature": np.float64, # old darksky
+        "temperatureApparent": np.float64, # new weatherkit
         "cloudCover": np.float64,
-        "dewPoint": np.float64,
+        "dewPoint": np.float64, # old darksky
+        "temperatureDewPoint": np.float64, # new weatherkit
         "humidity": np.float64,
-        "precipIntensity": np.float64,
-        "precipProbability": np.float64,
+        "precipIntensity": np.float64, # old darksky
+        "precipitationAmount": np.float64, # new weatherkit
+        "precipProbability": np.float64, # old darksky
+        "precipitationChance": np.float64, # new weatherkit
         "pressure": np.float64,
         "temperature": np.float64,
         "uvIndex": np.float64,
@@ -71,9 +75,10 @@ def getDtypes(attributes, forecastHorizon):
         "windBearing": np.float64,
         "windGust": np.float64,
         "windSpeed": np.float64,
+        "windDirection": np.float64, 
         "carbonFactor": np.float64,
         "carbonIndex": str
-        }
+        }   
     
     attributeDtypes = dict()
     attributeDtypes["unixTimestamp"] = np.int32
