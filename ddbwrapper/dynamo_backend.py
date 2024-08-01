@@ -136,11 +136,14 @@ class dynamoTable:
             for controller_reading in items: # controller_reading contains all data points for one timestep
                 point_values = [controller_reading['value']['readings'][x]['value'] for x in range(len(controller_reading['value']['readings']))]
                 point_names = [controller_reading['value']['readings'][x]['name'] for x in range(len(controller_reading['value']['readings']))]
+                point_units = [controller_reading['value']['readings'][x]['units'] for x in range(len(controller_reading['value']['readings']))]
                 point_unix = int(controller_reading['unixTimestamp'])
+                
+                final_point_names = [f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]
                 
                 timestep_series = pd.Series(
                     data = point_values,
-                    index = point_names,
+                    index = final_point_names,
                     name = point_unix
                     )
                 

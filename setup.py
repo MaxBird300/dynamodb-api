@@ -8,7 +8,7 @@ with open('README.md') as f:
 
 setup(
     name='ddbwrapper',
-    version='1.2.4',
+    version='1.2.5',
     description='Wrapper to easily access DynamoDB table',
     long_description=readme,
     author='Max Bird',
