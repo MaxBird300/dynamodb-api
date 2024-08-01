@@ -122,6 +122,7 @@ class dynamoTable:
         
         return all_meters
     
+    
     def getRdmControllerData(self, controller_id: str, unix_start: int, unix_end: int, freq=int) -> pd.DataFrame:
         """" Query data for a controller connected to the RDM panel"""
         
@@ -131,21 +132,24 @@ class dynamoTable:
             controller_data_df = pd.DataFrame(data=[np.nan], index=[unix_start])
             
         else:
-            point_names = [items[0]['value']['readings'][x]['name'] for x in range(len(items[0]['value']['readings']))] 
-            point_units = [items[0]['value']['readings'][x]['units'] for x in range(len(items[0]['value']['readings']))]
-            point_unix = [int(items[x]['unixTimestamp']) for x in range(len(items))]
-            df_columns = [f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]
-            
             data_at_each_timestep = []           
             for controller_reading in items: # controller_reading contains all data points for one timestep
                 point_values = [controller_reading['value']['readings'][x]['value'] for x in range(len(controller_reading['value']['readings']))]
-                data_at_each_timestep.append(point_values)
+                point_names = [controller_reading['value']['readings'][x]['name'] for x in range(len(controller_reading['value']['readings']))]
+                point_unix = int(controller_reading['unixTimestamp'])
                 
-            controller_data_df = pd.DataFrame(
-                data = data_at_each_timestep,
-                index = point_unix,
-                columns = df_columns
-                )
+                timestep_series = pd.Series(
+                    data = point_values,
+                    index = point_names,
+                    name = point_unix
+                    )
+                
+                data_at_each_timestep.append(timestep_series)
+                
+            controller_data_df = pd.concat(
+                data_at_each_timestep,
+                axis=1
+                ).T
 
         controller_data_df.index = pd.to_datetime(controller_data_df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
         
@@ -347,10 +351,18 @@ class dynamoTable:
 if __name__ == "__main__":
     """" Main function for testing purposes """
     
+    dynamo_table = dynamoTable("bmsTrial")  
+    unix_start = timestamp2unix("09:00 01/08/2024")
+    unix_end = timestamp2unix("11:00 01/08/2024")
+    cabinet_id = "packCabinet/081"
+
+
+    raw_telemetry = dynamo_table.getRdmControllerData(cabinet_id, unix_start, unix_end)
+    
     unix_start = timestamp2unix("00:00 01/10/2022")
     unix_end = timestamp2unix("00:00 08/11/2022")
     
-    dynamo_table = dynamoTable("bmsTrial")  
+    
     controller_id = "packCabinet/003"
     
     topic_list = [
@@ -406,7 +418,7 @@ if __name__ == "__main__":
     
     # cabinet_data = dynamo_table.getRdmControllerData(controller_id, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
     # bms_data = dynamo_table.getTopicsData(topic_list, unix_start, unix_end, freq=5*60)
-    meter_data = dynamo_table.getEnergyMeters(meter_list, unix_start, unix_end, resample_interval="15min")
+    # meter_data = dynamo_table.getEnergyMeters(meter_list, unix_start, unix_end, resample_interval="15min")
     
     
     
