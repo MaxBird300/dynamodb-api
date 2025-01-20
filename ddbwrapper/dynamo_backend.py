@@ -122,6 +122,32 @@ class dynamoTable:
         
         return all_meters
     
+    def getCopMonitoringData(self, device_id: str, unix_start: int, unix_end: int) -> pd.DataFrame:
+        
+        topic = f'kingslynn/gateway/hark.danfoss.adapter/data/{device_id}' # e.g. device_id = 'DT01_COP_1'
+        items, empty_response = self.queryDynamo(topic, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
+        
+        if empty_response:
+            controller_data_df = pd.DataFrame(data=[np.nan], index=[unix_start])
+            
+        else:
+            data_at_each_timestep = []           
+            for controller_reading in items: # controller_reading contains all data points for one timestep
+                timestep_series = pd.Series(
+                    controller_reading['value']['readings'],
+                    name = int(controller_reading['unixTimestamp'])
+                    )
+                data_at_each_timestep.append(timestep_series)
+            
+            controller_data_df = pd.concat(
+                data_at_each_timestep,
+                axis=1
+                ).T  
+
+        controller_data_df.index = pd.to_datetime(controller_data_df.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
+        
+        return controller_data_df
+    
     
     def getRdmControllerData(self, controller_id: str, unix_start: int, unix_end: int, freq=int) -> pd.DataFrame:
         """" Query data for a controller connected to the RDM panel"""
@@ -354,69 +380,76 @@ class dynamoTable:
 if __name__ == "__main__":
     """" Main function for testing purposes """
     
-    dynamo_table = dynamoTable("bmsTrial")  
-    unix_start = timestamp2unix("09:00 01/08/2024")
-    unix_end = timestamp2unix("11:00 01/08/2024")
-    cabinet_id = "packCabinet/081"
+    dynamo_table = dynamoTable("test1")  
+    unix_start = timestamp2unix("09:00 20/01/2025")
+    unix_end = timestamp2unix("11:00 20/01/2025")
+    
+    device_id = 'DT01_COP_1'
+    test = dynamo_table.getCopMonitoringData(device_id, unix_start, unix_end)
+    
+    
+    
+    
+    # cabinet_id = "packCabinet/081"
 
 
-    raw_telemetry = dynamo_table.getRdmControllerData(cabinet_id, unix_start, unix_end)
+    # raw_telemetry = dynamo_table.getRdmControllerData(cabinet_id, unix_start, unix_end)
     
-    unix_start = timestamp2unix("00:00 01/10/2022")
-    unix_end = timestamp2unix("00:00 08/11/2022")
+    # unix_start = timestamp2unix("00:00 01/10/2022")
+    # unix_end = timestamp2unix("00:00 08/11/2022")
     
     
-    controller_id = "packCabinet/003"
+    # controller_id = "packCabinet/003"
     
-    topic_list = [
-        'kings-lynn/OS-23/sensor/cold-aisle-1-temp-C',
-        'kings-lynn/OS-23/sensor/cold-aisle-2-temp-C',
-        'kings-lynn/OS-23/sensor/supply-air-duct-tem-C',
-        'kings-lynn/OS-23/sensor/return-air-duct-temp-C',
-        'kings-lynn/OS-23/sensor/ave-sales-temp-C',
-        'kings-lynn/OS-23/sensor/outside-air-temp-C',
-        'kings-lynn/OS-23/sensor/elevation-enabled-bool',
-        'kings-lynn/OS-23/sensor/supply-fan-1-speed-%',
-        'kings-lynn/OS-23/sensor/heating-valve-openess-%',
-        'kings-lynn/OS-23/sensor/elevation-on-off-bool',
-        'kings-lynn/OS-23/sensor/elevation-always-on-bool',
-        'kings-lynn/OS-23/sensor/calculated-supply-air-temp-sp-C',
-        'kings-lynn/OS-23/sensor/diff-pressure-switch-bool',
-        'kings-lynn/OS-23/sensor/gshp-supply-temp-C',
-        'kings-lynn/OS-23/sensor/duct-low-temp-trip-bool',
-        'kings-lynn/OS-23/sensor/duct-low-temp-latch-bool'
-        ]
+    # topic_list = [
+    #     'kings-lynn/OS-23/sensor/cold-aisle-1-temp-C',
+    #     'kings-lynn/OS-23/sensor/cold-aisle-2-temp-C',
+    #     'kings-lynn/OS-23/sensor/supply-air-duct-tem-C',
+    #     'kings-lynn/OS-23/sensor/return-air-duct-temp-C',
+    #     'kings-lynn/OS-23/sensor/ave-sales-temp-C',
+    #     'kings-lynn/OS-23/sensor/outside-air-temp-C',
+    #     'kings-lynn/OS-23/sensor/elevation-enabled-bool',
+    #     'kings-lynn/OS-23/sensor/supply-fan-1-speed-%',
+    #     'kings-lynn/OS-23/sensor/heating-valve-openess-%',
+    #     'kings-lynn/OS-23/sensor/elevation-on-off-bool',
+    #     'kings-lynn/OS-23/sensor/elevation-always-on-bool',
+    #     'kings-lynn/OS-23/sensor/calculated-supply-air-temp-sp-C',
+    #     'kings-lynn/OS-23/sensor/diff-pressure-switch-bool',
+    #     'kings-lynn/OS-23/sensor/gshp-supply-temp-C',
+    #     'kings-lynn/OS-23/sensor/duct-low-temp-trip-bool',
+    #     'kings-lynn/OS-23/sensor/duct-low-temp-latch-bool'
+    #     ]
     
-    meter_list = [
-        'kings-lynn/eict-meter/bakery-LV-kwh',
-        'kings-lynn/eict-meter/geothermal-plant-kwh',
-        'kings-lynn/eict-meter/fridge-DT1-kwh',
-        'kings-lynn/eict-meter/frozen-food-kwh',
-        'kings-lynn/eict-meter/customer-cafe-kwh',
-        'kings-lynn/eict-meter/food-to-go-kwh',
-        'kings-lynn/eict-meter/AHU1-kwh',
-        'kings-lynn/eict-meter/AHU2-kwh',
-        'kings-lynn/eict-meter/AHU3-kwh',
-        'kings-lynn/eict-meter/fridge-DT2-kwh',
-        'kings-lynn/eict-meter/coldstores-kwh',
-        'kings-lynn/eict-meter/sales-area-ltg-kwh',
-        'kings-lynn/eict-meter/ac-unit-DB-kwh',
-        'kings-lynn/eict-meter/staff-kitchen-kwh',
-        'kings-lynn/eict-meter/sales-busbar-kwh',
-        'kings-lynn/eict-meter/car-park-ltg-kwh',
-        'kings-lynn/eict-meter/domestic-ltg-kwh',
-        'kings-lynn/eict-meter/bulkstock-kwh',
-        'kings-lynn/eict-meter/shop-front-ltg-1-kwh',
-        'kings-lynn/eict-meter/unloading-bay-kwh',
-        'kings-lynn/eict-meter/main-meter-kwh',
-        'kings-lynn/eict-meter/concession-unit-kwh',
-        'kings-lynn/eict-meter/h-and-v-panel-kwh',
-        'kings-lynn/eict-meter/solar-pv-kwh',
-        'kings-lynn/eict-meter/petrol-station-PFS-kwh',
-        'kings-lynn/eict-meter/GOL-kwh',
-        'kings-lynn/eict-meter/GM-sales-ltg-kwh',
-        'kings-lynn/eict-meter/GM-sales-area-feature-ltg-kwh',
-        ]
+    # meter_list = [
+    #     'kings-lynn/eict-meter/bakery-LV-kwh',
+    #     'kings-lynn/eict-meter/geothermal-plant-kwh',
+    #     'kings-lynn/eict-meter/fridge-DT1-kwh',
+    #     'kings-lynn/eict-meter/frozen-food-kwh',
+    #     'kings-lynn/eict-meter/customer-cafe-kwh',
+    #     'kings-lynn/eict-meter/food-to-go-kwh',
+    #     'kings-lynn/eict-meter/AHU1-kwh',
+    #     'kings-lynn/eict-meter/AHU2-kwh',
+    #     'kings-lynn/eict-meter/AHU3-kwh',
+    #     'kings-lynn/eict-meter/fridge-DT2-kwh',
+    #     'kings-lynn/eict-meter/coldstores-kwh',
+    #     'kings-lynn/eict-meter/sales-area-ltg-kwh',
+    #     'kings-lynn/eict-meter/ac-unit-DB-kwh',
+    #     'kings-lynn/eict-meter/staff-kitchen-kwh',
+    #     'kings-lynn/eict-meter/sales-busbar-kwh',
+    #     'kings-lynn/eict-meter/car-park-ltg-kwh',
+    #     'kings-lynn/eict-meter/domestic-ltg-kwh',
+    #     'kings-lynn/eict-meter/bulkstock-kwh',
+    #     'kings-lynn/eict-meter/shop-front-ltg-1-kwh',
+    #     'kings-lynn/eict-meter/unloading-bay-kwh',
+    #     'kings-lynn/eict-meter/main-meter-kwh',
+    #     'kings-lynn/eict-meter/concession-unit-kwh',
+    #     'kings-lynn/eict-meter/h-and-v-panel-kwh',
+    #     'kings-lynn/eict-meter/solar-pv-kwh',
+    #     'kings-lynn/eict-meter/petrol-station-PFS-kwh',
+    #     'kings-lynn/eict-meter/GOL-kwh',
+    #     'kings-lynn/eict-meter/GM-sales-ltg-kwh',
+    #     'kings-lynn/eict-meter/GM-sales-area-feature-ltg-kwh',
+    #     ]
 
     
     # cabinet_data = dynamo_table.getRdmControllerData(controller_id, unix_start, unix_end) # items is a list of dicts, each dict contains sensor readings for one point in time
