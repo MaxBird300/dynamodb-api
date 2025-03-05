@@ -14,16 +14,41 @@ import sys
 from math import floor
 from ddbwrapper.utilities import getDtypes, timestamp2unix
 
-def calc_kwh(s: pd.Series, resample_interval: str="15min") -> pd.Series:
-
-    interval_kwh = s[1:].reset_index(drop=True) - s[:-1].reset_index(drop=True)
-    interval_kwh.index = s.index[1:]
+def calc_kwh(cumulative_series, resample_str: str=None):
+    """
+    Calculate kWh consumption between consecutive readings from a series of cumulative kWh meter readings.
     
-    if resample_interval:
-        interval_kwh.index = pd.to_datetime(interval_kwh.index, unit="s", origin="unix", utc=True).tz_convert("Europe/London")
-        interval_kwh = interval_kwh.resample(resample_interval).sum()
-        
-    return interval_kwh # timestamp is end of time period
+    This function converts the Unix timestamp index to a London timezone-aware datetime index, and
+    returns a new series where each value represents the kWh consumed between the current reading and
+    the following one. The index of the returned series corresponds to the start of each metering period.
+    
+    Parameters:
+        cumulative_series (pd.Series): A pandas Series with:
+            - Unix timestamps (in seconds) as the index.
+            - Cumulative kWh meter readings as the values.
+    
+    Returns:
+        pd.Series: A series containing the kWh consumed for each period, with an index of London timezone-aware
+                   datetime objects referring to the start of the period.
+    """
+    # Convert the Unix timestamp index to datetime in UTC and then to Europe/London timezone.
+    london_index = pd.to_datetime(cumulative_series.index, unit='s', utc=True).tz_convert("Europe/London")
+    
+    # Create a copy and update its index.
+    s = cumulative_series.copy()
+    s.index = london_index
+    
+    # Calculate the difference between consecutive readings.
+    # s.diff() calculates consumption with the difference appearing at the later timestamp.
+    # shift(-1) moves these differences to the earlier timestamp, making the index refer to the start of the period.
+    consumption = s.diff().shift(-1)
+    
+    # Drop the final NaN value, which does not represent a complete period.
+    consumption = consumption.dropna()
+    
+    if resample_str:
+        return consumption.resample(resample_str).sum()
+    return consumption
 
 class dynamoTable:
     
@@ -110,7 +135,7 @@ class dynamoTable:
         unix_end: unix timestamp for end of query
         resample_interval: resample frequency to pass to pandas resample function
         
-        df: index of timestamps (refers to end of period), each column is readings for all topics, column name is MQTT topic
+        df: index of timestamps (refers to start of period), each column is readings for all topics, column name is MQTT topic
         
         """
 
