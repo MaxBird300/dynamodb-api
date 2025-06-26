@@ -197,7 +197,10 @@ class dynamoTable:
                 seen.add(point_unix)
             
                 final_point_names = [f"{name} ({unit})" for name, unit in zip(point_names, point_units)]
-            
+                
+                if not point_values: # skip empty data
+                    continue
+                
                 timestep_series = pd.Series(data=point_values, index=final_point_names, name=point_unix)
                 data_at_each_timestep.append(timestep_series)
                 
