@@ -184,20 +184,21 @@ class dynamoTable:
             
         else:
             data_at_each_timestep = []           
-            for controller_reading in items: # controller_reading contains all data points for one timestep
-                point_values = [controller_reading['value']['readings'][x]['value'] for x in range(len(controller_reading['value']['readings']))]
-                point_names = [controller_reading['value']['readings'][x]['name'] for x in range(len(controller_reading['value']['readings']))]
-                point_units = [controller_reading['value']['readings'][x]['units'] for x in range(len(controller_reading['value']['readings']))]
+            seen = set()
+            for controller_reading in items:
+                point_values = [r['value'] for r in controller_reading['value']['readings']]
+                point_names = [r['name'] for r in controller_reading['value']['readings']]
+                point_units = [r['units'] for r in controller_reading['value']['readings']]
                 point_unix = int(controller_reading['unixTimestamp'])
-                
-                final_point_names = [f"{point_names[x]} ({point_units[x]})" for x in range(len(point_names))]
-                
-                timestep_series = pd.Series(
-                    data = point_values,
-                    index = final_point_names,
-                    name = point_unix
-                    )
-                
+            
+                # Ensure uniqueness
+                while point_unix in seen:
+                    point_unix += 1  # Add 1 second if duplicate
+                seen.add(point_unix)
+            
+                final_point_names = [f"{name} ({unit})" for name, unit in zip(point_names, point_units)]
+            
+                timestep_series = pd.Series(data=point_values, index=final_point_names, name=point_unix)
                 data_at_each_timestep.append(timestep_series)
                 
             controller_data_df = pd.concat(
@@ -405,20 +406,19 @@ class dynamoTable:
 if __name__ == "__main__":
     """" Main function for testing purposes """
     
-    dynamo_table = dynamoTable("test1")  
-    unix_start = timestamp2unix("09:00 20/01/2025")
-    unix_end = timestamp2unix("11:00 20/01/2025")
+    dynamo_table = dynamoTable("bmsTrial")  
+    # unix_start = timestamp2unix("09:00 20/01/2025")
+    # unix_end = timestamp2unix("11:00 20/01/2025")
     
-    device_id = 'DT01_COP_1'
-    test = dynamo_table.getCopMonitoringData(device_id, unix_start, unix_end)
-    
-    
+    # device_id = 'DT01_COP_1'
+    # test = dynamo_table.getCopMonitoringData(device_id, unix_start, unix_end)
     
     
-    # cabinet_id = "packCabinet/081"
-
-
-    # raw_telemetry = dynamo_table.getRdmControllerData(cabinet_id, unix_start, unix_end)
+    unix_start = timestamp2unix("00:00 01/05/2023")
+    unix_end = timestamp2unix("00:00 08/05/2023")
+    
+    cabinet_id = 'packController/302'
+    raw_telemetry = dynamo_table.getRdmControllerData(cabinet_id, unix_start, unix_end)
     
     # unix_start = timestamp2unix("00:00 01/10/2022")
     # unix_end = timestamp2unix("00:00 08/11/2022")
